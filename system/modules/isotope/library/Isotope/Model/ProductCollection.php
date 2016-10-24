@@ -1017,41 +1017,28 @@ abstract class ProductCollection extends TypeAgent implements IsotopeProductColl
         // Remove uploaded files from session so they are not added to the next product (see #646)
         unset($_SESSION['FILES']);
 
-        $objItem            = $this->getItemForProduct($objProduct);
+        
         $intMinimumQuantity = $objProduct->getMinimumQuantity();
 
-        if (null !== $objItem) {
-            if (($objItem->quantity + $fltQuantity) < $intMinimumQuantity) {
-                Message::addInfo(sprintf(
-                    $GLOBALS['TL_LANG']['ERR']['productMinimumQuantity'],
-                    $objProduct->getName(),
-                    $intMinimumQuantity
-                ));
-                $fltQuantity            = $intMinimumQuantity - $objItem->quantity;
-            }
-
-            $objItem->increaseQuantityBy($fltQuantity);
-        } else {
-            if ($fltQuantity < $intMinimumQuantity) {
-                Message::addInfo(sprintf(
-                    $GLOBALS['TL_LANG']['ERR']['productMinimumQuantity'],
-                    $objProduct->getName(),
-                    $intMinimumQuantity
-                ));
-                $fltQuantity            = $intMinimumQuantity;
-            }
-
-            $objItem           = new ProductCollectionItem();
-            $objItem->pid      = $this->id;
-            $objItem->jumpTo   = (int) $arrConfig['jumpTo']->id;
-
-            $this->setProductForItem($objProduct, $objItem, $fltQuantity);
-            $objItem->save();
-
-            // Add the new item to our cache
-            $this->arrItems[$objItem->id] = $objItem;
+		if ($fltQuantity < $intMinimumQuantity) {
+        	Message::addInfo(sprintf(
+         	   $GLOBALS['TL_LANG']['ERR']['productMinimumQuantity'],
+               $objProduct->getName(),
+               $intMinimumQuantity
+			));
+			$fltQuantity            = $intMinimumQuantity;
         }
 
+		$objItem           = new ProductCollectionItem();
+		$objItem->pid      = $this->id;
+		$objItem->jumpTo   = (int) $arrConfig['jumpTo']->id;
+
+		$this->setProductForItem($objProduct, $objItem, $fltQuantity);
+		$objItem->save();
+
+		// Add the new item to our cache
+		$this->arrItems[$objItem->id] = $objItem;
+        
         // !HOOK: additional functionality when adding product to collection
         if (isset($GLOBALS['ISO_HOOKS']['postAddProductToCollection'])
             && is_array($GLOBALS['ISO_HOOKS']['postAddProductToCollection'])
@@ -1323,19 +1310,10 @@ abstract class ProductCollection extends TypeAgent implements IsotopeProductColl
                 }
             }
 
-            if ($objOldItem->hasProduct() && $this->hasProduct($objOldItem->getProduct())) {
-
-                $objNewItem = $this->getItemForProduct($objOldItem->getProduct());
-                $objNewItem->increaseQuantityBy($objOldItem->quantity);
-
-            } else {
-
-                $objNewItem         = clone $objOldItem;
-                $objNewItem->pid    = $this->id;
-                $objNewItem->tstamp = $time;
-                $objNewItem->save();
-            }
-
+            $objNewItem         = clone $objOldItem;
+            $objNewItem->pid    = $this->id;
+            $objNewItem->tstamp = $time;
+            $objNewItem->save();
             $arrIds[$objOldItem->id] = $objNewItem->id;
         }
 
