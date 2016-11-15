@@ -981,6 +981,26 @@ abstract class ProductCollection extends TypeAgent implements IsotopeProductColl
         return false;
     }
 
+	/**
+	 * Get the item-surcharge
+	 *
+	 * @param ProductCollectionItem $objItem
+	 *
+	 * @return null|ProductCollectionItem
+	 */
+	public function getItemSurcharge(ProductCollectionItem $objItem)
+	{
+		foreach($this->getItems() as $objListItem)
+		{
+			if(!$objListItem->parentitem || $objListItem->parentitem != $objItem->id)
+				continue;
+			else
+				return $objListItem;
+		}
+		return null;
+	}
+
+
     /**
      * Add a product to the collection
      *
@@ -1038,6 +1058,28 @@ abstract class ProductCollection extends TypeAgent implements IsotopeProductColl
 
 		// Add the new item to our cache
 		$this->arrItems[$objItem->id] = $objItem;
+
+		/** add item-surcharge **/
+		if(
+			!$objItem->parentitem 
+			&& (null !== ($arrSurchargeNeeded = $this->isItemSurchargeNeeded($objItem)))
+		)
+		{
+			// add item-surcharge
+			if(
+				null === $this->getItemSurcharge($objItem)
+				&& false !== $arrSurchargeNeeded
+			)
+			{
+				$objSurchargeItem = $this->addProduct(
+					$arrSurchargeNeeded['product'],
+					$arrSurchargeNeeded['qty']
+				);
+				$objSurchargeItem->parentitem = $objItem->id;
+				$objSurchargeItem->save();
+			}
+		}
+
         
         // !HOOK: additional functionality when adding product to collection
         if (isset($GLOBALS['ISO_HOOKS']['postAddProductToCollection'])
@@ -1080,6 +1122,48 @@ abstract class ProductCollection extends TypeAgent implements IsotopeProductColl
 
         $this->setProductForItem($objProduct, $objItem, $objItem->quantity);
         $objItem->save();
+
+		/** add|delete|update item-surcharge **/
+		if(
+			!$objItem->parentitem 
+			&& (null !== ($arrSurchargeNeeded = $this->isItemSurchargeNeeded($objItem)))
+		)
+		{
+			// update existing item-surcharge
+			if(
+				is_array($arrSurchargeNeeded)
+				&& (null !== ($objSurchargeItem = $this->getItemSurcharge($objItem)))
+				&& $arrSurchargeNeeded['qty'] != $objSurchargeItem->quantity
+			)
+			{
+				$objSurchargeItem->quantity = $arrSurchargeNeeded['qty'];
+				$objSurchargeItem->save();
+			}
+
+			// add new item-surcharge
+			if(
+				null === $this->getItemSurcharge($objItem)
+				&& false !== $arrSurchargeNeeded
+			)
+			{
+				$objSurchargeItem = $this->addProduct(
+					$arrSurchargeNeeded['product'],
+					$arrSurchargeNeeded['qty']
+				);
+				$objSurchargeItem->parentitem = $objItem->id;
+				$objSurchargeItem->save();
+			}
+			// remove item-surcharge
+			elseif(
+				false === $arrSurchargeNeeded
+				&& (null !== ($objSurchargeItem = $this->getItemSurcharge($objItem)))
+			)
+			{
+				$intSurchargeId = $objSurchargeItem->id;
+				$objSurchargeItem->delete();
+				unset($this->arrItems[$intSurchargeId]);
+			}
+		}
 
         // !HOOK: additional functionality when adding product to collection
         if (isset($GLOBALS['ISO_HOOKS']['postUpdateProductInCollection'])
@@ -1212,7 +1296,7 @@ abstract class ProductCollection extends TypeAgent implements IsotopeProductColl
 
         $arrItems = $this->getItems();
 
-        if (!isset($arrItems[$intId])) {
+        if (!isset($arrItems[$intId]) || $arrItems[$intId]->parentitem) {
             return false;
         }
 
@@ -1232,11 +1316,20 @@ abstract class ProductCollection extends TypeAgent implements IsotopeProductColl
             }
         }
 
+		// delete all surrogates for this item too
+		foreach($this->arrItems as $aItem)
+		{
+			if($aItem->parentitem == $objItem->id)
+			{
+				$surrId = $aItem->id;
+				$aItem->delete();
+    	   		unset($this->arrItems[$surrId]);
+			}
+		}
         $objItem->delete();
-
         unset($this->arrItems[$intId]);
 
-        $this->tstamp = time();
+	    $this->tstamp = time();
 
         // !HOOK: additional functionality when adding product to collection
         if (isset($GLOBALS['ISO_HOOKS']['postDeleteItemFromCollection'])
@@ -1248,8 +1341,102 @@ abstract class ProductCollection extends TypeAgent implements IsotopeProductColl
             }
         }
 
-        return true;
+		return true;
     }
+
+
+	/**
+	 * check if a item need a Surcharge by resolve the expression in
+	 * objProduct->mm 
+	 * return null: no surcharge defined
+	 * return false: no surcharge needed, but there is a rule
+	 * return array() surcharge needed, Isotope product & qty returned
+	 * legend: mm stands for "mindermenge"
+	 * @var $objItem Isotop ProductCollectionItem
+	 * @return null|boolean|array
+	 */
+	public function isItemSurchargeNeeded($objItem)
+	{
+		/**no rule configured**/
+		if(!$objItem->parentitem && !$objItem->getProduct()->mm)
+			return null;
+		elseif($objItem->parentitem)
+		{
+			/**a surchage is committed, find parent**/
+			$arrItems = $this->getItems();
+			$objItem = $arrItems[$objItem->parentitem];
+		}
+		
+		$arrVal = explode("::",$objItem->getProduct()->mm);
+		$arrAttributes = $objItem->getOptions();
+		$arrAttributes['quantity'] = $objItem->quantity;
+
+		if(
+			isset($arrAttributes[$arrVal[0]]) 
+			&& isset($arrVal[1]) 
+			&& \Validator::isNumeric($arrVal[1])
+			&& ( ($objMmProduct = \Isotope\Model\Product::findPublishedByPk($arrVal[2])) !== null)
+		)
+		{
+			// add mm
+			if($arrAttributes[$arrVal[0]] < $arrVal[1])
+			{
+				// qty
+				$qty=1;
+				if(isset($arrVal[3]))
+					$qty = $this->getQtyBySurchargeRule($objItem->getProduct());
+
+				return array('qty'=>$qty,'product'=>$objMmProduct);
+			}		
+			// remove mm
+			else
+			{
+				return false;
+			}
+
+		}
+		else
+		{
+			return null;
+		}
+	}
+	
+	/**
+	 * resolve qty from surcharge-rule:
+	 * quantity::300::114::anzahl = anzahl is the attribut for qty
+	 * quantity::300::114::1 = 1 is the qty
+	 * @var $objProduct Isotope\Product
+	 * @return float quantity for surcharge
+	 */
+	public function getQtyBySurchargeRule($objProduct)
+	{
+		$arrCustomerConfig = $objProduct->getCustomerConfig();
+		$arrVal = explode("::",$objProduct->mm);
+
+		if(!isset($arrVal[3]))
+			return 1;
+		else
+			$rule = $arrVal[3];
+		
+		if(
+			!is_numeric($rule) 
+			&& isset($arrCustomerConfig[$rule])
+			&& is_numeric($arrCustomerConfig[$rule])
+		)
+		{
+			$qty = $arrCustomerConfig[$rule];
+		}
+		elseif( isset($arrCustomerConfig[$rule]) && is_numeric($rule))
+		{
+			$qty = $rule;
+		}
+		else
+		{
+			$qty = 1;
+		}
+		return $qty;
+	}
+
 
     /**
      * Find surcharges for the current collection
