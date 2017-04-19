@@ -1382,23 +1382,56 @@ abstract class ProductCollection extends TypeAgent implements IsotopeProductColl
 		$arrVal = explode("::",$objItem->getProduct()->mm);
 		$arrAttributes = $objItem->getOptions();
 		$arrAttributes['quantity'] = $objItem->quantity;
+        
+        $attr_code   = $arrVal[0];
 
 		if(
-			isset($arrAttributes[$arrVal[0]]) 
-			&& isset($arrVal[1]) 
+			( isset($arrAttributes[$attr_code]) || (isset($arrVal[4]) && isset($arrAttributes[$arrVal[4]])) )
+			&& isset($arrVal[1])  // the qty for comparing
 			&& \Validator::isNumeric($arrVal[1])
-			&& ( ($objMmProduct = \Isotope\Model\Product::findPublishedByPk($arrVal[2])) !== null)
+			&& ( ($objMmProduct = \Isotope\Model\Product::findPublishedByPk($arrVal[2])) !== null) // the mm procuct
 		)
 		{
-			// add mm
-			if($arrAttributes[$arrVal[0]] < $arrVal[1])
-			{
-				// qty
-				$qty=1;
-				if(isset($arrVal[3]))
-					$qty = $this->getQtyBySurchargeRule($objItem->getProduct());
+            $compare_qty = $arrVal[1];
+            $context_attrcode = (isset($arrVal[4]) ? $arrVal[4] : null);
+            
+            /** context given? **/
+            if($context_attrcode && isset($arrAttributes[$context_attrcode]) ) {
 
-				return array('qty'=>$qty,'product'=>$objMmProduct);
+                $json = html_entity_decode($arrAttributes[$context_attrcode]);
+                $arr = json_decode($json,true);
+                
+                if(!$arr || !is_array($arr)) {
+                    return null;
+                }
+                    
+                $surchargeQty = 0;
+                foreach($arr as $arrValues) {
+                    if(
+                        isset($arrValues[$attr_code]) 
+                        && $arrValues[$attr_code] < $compare_qty
+                    ) {
+                        file_put_contents("/var/www/contao.log",print_r($arrValues[$attr_code] . "<". $compare_qty,true),FILE_APPEND);
+                        if(isset($arrVal[3])) {
+                            $surchargeQty += $this->getQtyBySurchargeRule($objItem->getProduct(),$arrValues);
+                        } else {
+                            $surchargeQty += 1;
+                        }
+                    }                
+                }
+                
+                if($surchargeQty == 0)
+                    return false;
+                
+                return array('qty'=>$surchargeQty,'product'=>$objMmProduct);
+                
+            } elseif($arrAttributes[$arrVal[0]] < $arrVal[1]) {
+				// qty
+				$surchargeQty=1;
+				if(isset($arrVal[3]))
+					$surchargeQty = $this->getQtyBySurchargeRule($objItem->getProduct());
+
+				return array('qty'=>$surchargeQty,'product'=>$objMmProduct);
 			}		
 			// remove mm
 			else
@@ -1418,9 +1451,11 @@ abstract class ProductCollection extends TypeAgent implements IsotopeProductColl
 	 * quantity::300::114::anzahl = anzahl is the attribut for qty
 	 * quantity::300::114::1 = 1 is the qty
 	 * @var $objProduct Isotope\Product
+     * @var $arrContext array looking in this array for Key named $arrVal[3]
+     * @var rule: can be an numeric value or an attr_code
 	 * @return float quantity for surcharge
 	 */
-	public function getQtyBySurchargeRule($objProduct)
+	public function getQtyBySurchargeRule($objProduct,$arrContext=array())
 	{
 		$arrCustomerConfig = $objProduct->getCustomerConfig();
 		$arrVal = explode("::",$objProduct->mm);
@@ -1430,7 +1465,12 @@ abstract class ProductCollection extends TypeAgent implements IsotopeProductColl
 		else
 			$rule = $arrVal[3];
 		
-		if(
+        /** attr_code with context **/
+        if(!is_numeric($rule) && $arrContext && isset($arrContext[$rule])) {
+            $qty = $arrContext[$rule];
+        } 
+        /** attr_code **/
+		elseif(
 			!is_numeric($rule) 
 			&& isset($arrCustomerConfig[$rule])
 			&& is_numeric($arrCustomerConfig[$rule])
@@ -1438,6 +1478,7 @@ abstract class ProductCollection extends TypeAgent implements IsotopeProductColl
 		{
 			$qty = $arrCustomerConfig[$rule];
 		}
+        /** numeric **/
 		elseif( isset($arrCustomerConfig[$rule]) && is_numeric($rule))
 		{
 			$qty = $rule;
