@@ -140,9 +140,29 @@ class InsertTag
 
             case 'weight':
                 return Isotope::formatPrice($collection->addToScale()->amountIn($tokens[2]), false);
+                
+            case 'payment':
+                if (!$collection->hasPayment() 
+                    || ($objPayment = $collection->getPaymentMethod()) === null
+                ) {
+                    return '';
+                }
+                
+                return $this->getValueForPaymentTag($objPayment, $tokens[2]);
 
             default:
                 return $collection->{$tokens[1]};
+        }
+    }
+
+    private function getValueForPaymentTag($payment, $attribute = null)
+    {
+        if($attribute === 'label') {
+            return $payment->getLabel();
+        } elseif($attribute === 'note') {
+            return $payment->getNote();
+        } else {
+            return '';
         }
     }
 
