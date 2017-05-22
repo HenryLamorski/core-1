@@ -1019,10 +1019,11 @@ abstract class ProductCollection extends TypeAgent implements IsotopeProductColl
      * @param IsotopeProduct $objProduct
      * @param float          $fltQuantity
      * @param array          $arrConfig
+     * @param int            $parentitem|null
      *
      * @return ProductCollectionItem|false
      */
-    public function addProduct(IsotopeProduct $objProduct, $fltQuantity, array $arrConfig = array())
+    public function addProduct(IsotopeProduct $objProduct, $fltQuantity, array $arrConfig = array(),$parentitem=null)
     {
         // !HOOK: additional functionality when adding product to collection
         if (isset($GLOBALS['ISO_HOOKS']['addProductToCollection'])
@@ -1065,7 +1066,7 @@ abstract class ProductCollection extends TypeAgent implements IsotopeProductColl
 		$objItem->pid      = $this->id;
 		$objItem->jumpTo   = (int) $arrConfig['jumpTo']->id;
 
-		$this->setProductForItem($objProduct, $objItem, $fltQuantity);
+		$this->setProductForItem($objProduct, $objItem, $fltQuantity, $parentitem);
 		$objItem->save();
 
 		// Add the new item to our cache
@@ -1085,14 +1086,14 @@ abstract class ProductCollection extends TypeAgent implements IsotopeProductColl
 			{
 				$objSurchargeItem = $this->addProduct(
 					$arrSurchargeNeeded['product'],
-					$arrSurchargeNeeded['qty']
+					$arrSurchargeNeeded['qty'],
+                    array(),
+                    $objItem->id
 				);
-				$objSurchargeItem->parentitem = $objItem->id;
 				$objSurchargeItem->save();
 			}
 		}
 
-        
         // !HOOK: additional functionality when adding product to collection
         if (isset($GLOBALS['ISO_HOOKS']['postAddProductToCollection'])
             && is_array($GLOBALS['ISO_HOOKS']['postAddProductToCollection'])
@@ -1102,7 +1103,7 @@ abstract class ProductCollection extends TypeAgent implements IsotopeProductColl
                 $objCallback->{$callback[1]}($objItem, $fltQuantity, $this);
             }
         }
-
+       
         return $objItem;
     }
 
@@ -1160,9 +1161,10 @@ abstract class ProductCollection extends TypeAgent implements IsotopeProductColl
 			{
 				$objSurchargeItem = $this->addProduct(
 					$arrSurchargeNeeded['product'],
-					$arrSurchargeNeeded['qty']
+					$arrSurchargeNeeded['qty'],
+                    array(),
+                    $objItem->id
 				);
-				$objSurchargeItem->parentitem = $objItem->id;
 				$objSurchargeItem->save();
 			}
 			// remove item-surcharge
@@ -1411,7 +1413,6 @@ abstract class ProductCollection extends TypeAgent implements IsotopeProductColl
                         isset($arrValues[$attr_code]) 
                         && $arrValues[$attr_code] < $compare_qty
                     ) {
-                        file_put_contents("/var/www/contao.log",print_r($arrValues[$attr_code] . "<". $compare_qty,true),FILE_APPEND);
                         if(isset($arrVal[3])) {
                             $surchargeQty += $this->getQtyBySurchargeRule($objItem->getProduct(),$arrValues);
                         } else {
@@ -1428,8 +1429,9 @@ abstract class ProductCollection extends TypeAgent implements IsotopeProductColl
             } elseif($arrAttributes[$arrVal[0]] < $arrVal[1]) {
 				// qty
 				$surchargeQty=1;
-				if(isset($arrVal[3]))
+				if(isset($arrVal[3])) {
 					$surchargeQty = $this->getQtyBySurchargeRule($objItem->getProduct());
+                }
 
 				return array('qty'=>$surchargeQty,'product'=>$objMmProduct);
 			}		
@@ -2230,13 +2232,15 @@ abstract class ProductCollection extends TypeAgent implements IsotopeProductColl
      * @param IsotopeProduct        $product
      * @param ProductCollectionItem $item
      * @param float                 $fltQuantity
+     * @param int                   $parentitem
      */
-    private function setProductForItem(IsotopeProduct $product, ProductCollectionItem $item, $fltQuantity)
+    private function setProductForItem(IsotopeProduct $product, ProductCollectionItem $item, $fltQuantity,$parentitem=null)
     {
         $item->tstamp         = time();
         $item->type           = array_search(get_class($product), Product::getModelTypes(), true);
         $item->product_id     = $product->getId();
         $item->sku            = $product->getSku();
+        $item->parentitem     = $parentitem;
         $item->name           = $product->getName();
         $item->configuration  = $product->getOptions();
         $item->quantity       = (float) $fltQuantity;
