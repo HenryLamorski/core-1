@@ -1562,6 +1562,16 @@ abstract class ProductCollection extends TypeAgent implements IsotopeProductColl
         if (count($arrIds) > 0) {
             $this->tstamp = $time;
         }
+        
+        /** rebuild parentitem **/
+        $arrItems = $this->getItems();
+        foreach($arrItems as $objItem) {
+            if(!$objItem->parentitem) {
+                continue;
+            }
+            $objItem->parentitem = $arrIds[$objItem->parentitem];
+            $objItem->save();
+        }
 
         // !HOOK: additional functionality when adding product to collection
         if (isset($GLOBALS['ISO_HOOKS']['copiedCollectionItems'])
