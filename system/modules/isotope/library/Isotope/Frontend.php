@@ -91,14 +91,14 @@ class Frontend extends \Frontend
     public function addToCart(IsotopeProduct $objProduct, array $arrConfig = array())
     {
         $objModule   = $arrConfig['module'];
-        $intQuantity = ($objModule->iso_use_quantity && ((float) \Input::post('quantity_requested')) > 0) ? ((float) \Input::post('quantity_requested')) : 1;
+        $fltQuantity = ($objModule->iso_use_quantity && ((float) \Input::post('quantity_requested')) > 0) ? ((float) \Input::post('quantity_requested')) : 1;
 
         // Do not add parent of variant product to the cart
         if ($objProduct->hasVariants() && !$objProduct->isVariant()) {
             return;
         }
 
-        if (Isotope::getCart()->addProduct($objProduct, $intQuantity, $arrConfig) !== false) {
+        if (Isotope::getCart()->addProduct($objProduct, $fltQuantity, $arrConfig) !== false) {
             Message::addConfirmation($GLOBALS['TL_LANG']['MSC']['addedToCart']);
 
             if (!$objModule->iso_addProductJumpTo) {
