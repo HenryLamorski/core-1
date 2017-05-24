@@ -128,8 +128,10 @@ abstract class AbstractProductCollection extends Module
         }
 
         $objTemplate->items         = $arrItems;
+        $objTemplate->jumpTo        = $this->iso_cart_jumpTo;
         $objTemplate->buttons       = $buttons;
 
+        $this->Template->jumpTo     = $this->iso_cart_jumpTo;
         $this->Template->empty      = false;
         $this->Template->collection = $collection;
         $this->Template->products   = $objTemplate->parse();
