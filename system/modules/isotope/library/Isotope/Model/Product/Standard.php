@@ -324,6 +324,7 @@ class Standard extends AbstractProduct implements WeightAggregate, IsotopeProduc
      */
     public function setOptions(array $options)
     {
+         
         if (!$this->blnPreventSaving) {
             throw new \RuntimeException('Do not modify a product object that is in the model registry!');
         }
@@ -805,7 +806,6 @@ class Standard extends AbstractProduct implements WeightAggregate, IsotopeProduc
             } elseif (count($arrValues) == 1) {
                 $arrOptions[$attribute] = $arrValues[0];
             } else {
-
                 // Abort if any attribute does not have a value, we can't find a variant
                 $hasOptions = false;
                 break;
@@ -1014,6 +1014,7 @@ class Standard extends AbstractProduct implements WeightAggregate, IsotopeProduc
                 && $item->getProduct()->getProductId() == $this->getProductId()
             ) {
                 $this->arrDefaults = $item->getOptions();
+                $this->arrCustomerConfig = $item->getOptions();
                 $this->blnUpdate = true;
             }
         } else {
