@@ -340,9 +340,11 @@ class Standard extends AbstractProduct implements WeightAggregate, IsotopeProduc
         foreach ($options as $k => $v) {
             if (in_array($k, $attributes, true)) {
                 if ($this->arrData[$k] != $v) {
+					
                     throw new \RuntimeException(
                         sprintf('"%s" for attribute "%s" does not match current variant.', $v, $k)
                     );
+
                 }
 
                 // Ignore variant data, that's already stored
@@ -408,7 +410,7 @@ class Standard extends AbstractProduct implements WeightAggregate, IsotopeProduc
      */
     public function generate(array $arrConfig)
     {
-        $this->loadDefaults();
+        $this->loadDefaults(true);
 
         $this->strFormId = (($arrConfig['module'] instanceof \ContentElement) ? 'cte' : 'fmd') . $arrConfig['module']->id . '_product_' . $this->getProductId();
         $objProduct      = $this->validateVariant();
@@ -1014,7 +1016,6 @@ class Standard extends AbstractProduct implements WeightAggregate, IsotopeProduc
                 && $item->getProduct()->getProductId() == $this->getProductId()
             ) {
                 $this->arrDefaults = $item->getOptions();
-                $this->arrCustomerConfig = $item->getOptions();
                 $this->blnUpdate = true;
             }
         } else {
