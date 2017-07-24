@@ -209,7 +209,7 @@ abstract class Module extends AbstractFrontendModule
      *
      * @return \PageModel
      */
-    protected function findJumpToPage($objProduct)
+    public function findJumpToPage($objProduct)
     {
         global $objPage;
         global $objIsotopeListPage;
