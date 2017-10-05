@@ -1,6 +1,67 @@
 Isotope eCommerce Changelog
 ===========================
 
+
+Version 2.4.4 (2017-09-07)
+--------------------------
+
+### Improved
+
+- Correctly limit notifications options for order status (#1816)
+- Symlink the Isotope images folder to web in Contao 4 (#1794)
+- Replace insert tags in document name (#1841)
+
+
+### Fixed
+
+- Renewal of guest cart cookie could lead to error message (#1837)
+- Contao 4 response exception caused log message in postsale request (#1834)
+- Allow blank option / no image size in gallery configuration (#1830)
+- Broken cumulative filter when using foreign key attributes (#1844)
+- Rebuild DcaExtractor cache when changing attributes (#1825)
+- Duplicate attribute values in some collection templates (#1864)
+- Default variant selection was lost when editing a variant (#1849)
+- Saferpay payment response was not correctly validated (#1855)
+- Address without name contained empty lines (#1845)
+- Language selection was sometimes unusable when editing products (#1850)
+
+
+Version 2.4.3 (2017-07-28)
+--------------------------
+
+### Fixed
+
+- Address data was not correctly saved in orders (#1828)
+- Remove edit button if product in collection has errors (#1829)
+
+
+Version 2.4.2 (2017-07-26)
+--------------------------
+
+### Improved
+
+- Updated navigation icon for Contao 4.4 backend (#1808)
+- Pass DataContainer object when generating widgets (#1758)
+
+
+### Fixed
+
+- Removed line break on version panel in product edit mode
+- Integrity Check could not disable rules module in Contao 4 (#1764)
+- Removed usage of mysql_real_escape_string (#1786)
+- Fixed PHP7 compatibility for backend overview callback (#1795)
+- Always store the country in order addresses (#1811)
+- Member country restrictions were not applicable in Contao 4 (#1803)
+- ImageSize widget is no longer usable for custom options (#1761)
+- Shimane was missing in the japanese subdivisions list (#1810)
+- Custom template is not supported for related products module (#1809)
+- DC clipboard is stored in non-persistent session in Contao 4 (#1806)
+- Group and page selection in products backend did not reload (#1801)
+- Help wizard was empty for payment, shipping, gallery and producttype (#1821)
+- TinyMCE options were missing in textarea attribute (#1815)
+- Back button was not visible in Contao 4.4 picker (#1813)
+
+
 Version 2.4.1 (2017-03-07)
 --------------------------
 
@@ -23,6 +84,7 @@ Version 2.4.1 (2017-03-07)
 
 
 ### Improved
+
 - Added itemscope attributes to product list (#1751)
 
 

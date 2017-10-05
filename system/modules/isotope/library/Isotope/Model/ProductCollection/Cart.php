@@ -177,8 +177,7 @@ class Cart extends ProductCollection implements IsotopeOrderableCollection
                         && is_array($GLOBALS['ISO_HOOKS']['updateDraftOrder'])
                     ) {
                         foreach ($GLOBALS['ISO_HOOKS']['updateDraftOrder'] as $callback) {
-                            $objCallback = \System::importStatic($callback[0]);
-                            $objCallback->{$callback[1]}($objOrder, $this, $arrItemIds);
+                            \System::importStatic($callback[0])->{$callback[1]}($objOrder, $this, $arrItemIds);
                         }
                     }
                 } catch (\Exception $e) {
@@ -227,6 +226,26 @@ class Cart extends ProductCollection implements IsotopeOrderableCollection
         }
 
         return $arrErrors;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function save()
+    {
+        parent::save();
+
+        // Create the guest cart cookie
+        if (!$this->member && !headers_sent() && '' === (string) \Input::cookie(static::$strCookie)) {
+            \System::setCookie(
+                static::$strCookie,
+                $this->uniqid,
+                $this->tstamp + $GLOBALS['TL_CONFIG']['iso_cartTimeout'],
+                $GLOBALS['TL_CONFIG']['websitePath']
+            );
+        }
+
+        return $this;
     }
 
     /**
@@ -309,15 +328,16 @@ class Cart extends ProductCollection implements IsotopeOrderableCollection
 
         } else {
             $objCart->tstamp = $time;
-        }
 
-        if (true !== FE_USER_LOGGED_IN) {
-            \System::setCookie(
-                static::$strCookie,
-                $cookieHash,
-                $time + $GLOBALS['TL_CONFIG']['iso_cartTimeout'],
-                $GLOBALS['TL_CONFIG']['websitePath']
-            );
+            // Renew the guest cart cookie
+            if (!$objCart->member && !headers_sent()) {
+                \System::setCookie(
+                    static::$strCookie,
+                    $objCart->uniqid,
+                    $time + $GLOBALS['TL_CONFIG']['iso_cartTimeout'],
+                    $GLOBALS['TL_CONFIG']['websitePath']
+                );
+            }
         }
 
         return $objCart;

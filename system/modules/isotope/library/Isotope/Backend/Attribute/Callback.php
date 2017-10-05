@@ -13,7 +13,6 @@ namespace Isotope\Backend\Attribute;
 
 use Isotope\Model\Attribute;
 use Isotope\Model\AttributeOption;
-use Isotope\DatabaseUpdater;
 
 class Callback extends \Backend
 {
@@ -90,20 +89,14 @@ class Callback extends \Backend
     /**
      * Alter attribute columns in tl_iso_product table
      *
-     * @param object $dc
+     * @param \DataContainer $dc
+     *
+     * @deprecated Deprecated since Isotope 2.4.4, use DatabaseUpdate::updateDatabase().
      */
     public function updateDatabase($dc)
     {
-        if (!$dc->activeRecord->field_name) {
-            return;
-        }
-
-        // Make sure the latest SQL definitions are written to the DCA
-        $GLOBALS['TL_CONFIG']['bypassCache'] = true;
-        \Controller::loadDataContainer('tl_iso_product', true);
-
-        $objUpdater = new DatabaseUpdater();
-        $objUpdater->autoUpdateTables(array('tl_iso_product'));
+        $callback = new DatabaseUpdate();
+        $callback->updateDatabase($dc);
     }
 
     /**
@@ -134,15 +127,21 @@ class Callback extends \Backend
      */
     public function getRTE()
     {
-        $arrOptions = array();
+        $options = array();
 
-        foreach (scan(TL_ROOT . '/system/config') as $file) {
-            if (is_file(TL_ROOT . '/system/config/' . $file) && strpos($file, 'tiny') === 0) {
-                $arrOptions[] = basename($file, '.php');
+        if (version_compare(VERSION, '4.0', '<')) {
+            foreach (scan(TL_ROOT . '/system/config') as $file) {
+                if (is_file(TL_ROOT . '/system/config/' . $file) && strpos($file, 'tiny') === 0) {
+                    $options[] = basename($file, '.php');
+                }
+            }
+        } else {
+            foreach (preg_grep('/^be_tiny/', array_keys(\TemplateLoader::getFiles())) as $template) {
+                $options[] = substr($template, 3);
             }
         }
 
-        return $arrOptions;
+        return $options;
     }
 
     /**

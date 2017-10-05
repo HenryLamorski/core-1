@@ -2,25 +2,25 @@
 
 namespace Isotope\ContaoManager;
 
-use Contao\ManagerPlugin\Bundle\BundlePluginInterface;
-use Contao\ManagerPlugin\Bundle\Parser\ParserInterface;
+use Contao\ManagerPlugin\Config\ConfigPluginInterface;
+use Symfony\Component\Config\Loader\LoaderInterface;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Definition;
 
-/**
- * Plugin for the Contao Manager.
- *
- * @author Andreas Schempp <https://github.com/aschempp>
- */
-class Plugin implements BundlePluginInterface
+class Plugin implements ConfigPluginInterface
 {
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
-    public function getBundles(ParserInterface $parser)
+    public function registerContainerConfiguration(LoaderInterface $loader, array $managerConfig)
     {
-        return array_merge(
-            $parser->parse('isotope', 'ini'),
-            $parser->parse('isotope_reports', 'ini'),
-            $parser->parse('isotope_rules', 'ini')
-        );
+        $loader->load(function (ContainerBuilder $container) {
+            $container->setDefinition(
+                'isotope.listener.console',
+                (new Definition('Isotope\EventListener\SymlinkCommandListener'))
+                    ->setArguments(['%kernel.root_dir%'])
+                    ->addTag('kernel.event_listener', ['event' => 'console.terminate'])
+            );
+        });
     }
 }
