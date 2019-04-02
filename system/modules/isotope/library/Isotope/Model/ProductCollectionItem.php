@@ -91,21 +91,15 @@ class ProductCollectionItem extends \Model
     {
         $blnIntegerOnly = (int) $this->getProduct()->getRelated('type')->integer_only;
 
-        if($blnIntegerOnly)
-		{
-			if(!\Validator::isNatural($this->quantity))
-			{
-                $this->quantity = 1;
+        if($blnIntegerOnly) {
+			if(!\Validator::isNatural($this->quantity)) {
+                $this->quantity = (int) $this->quantity;
    			} 
-		}
-		else
-		{
-			if(!\Validator::isNumeric($this->quantity))
-			{
+		} else {
+			if(!\Validator::isNumeric($this->quantity)) {
                 $this->quantity = 1;
             }
 		}
-
         return $this->quantity;
     }
 
@@ -197,7 +191,6 @@ class ProductCollectionItem extends \Model
 
             if ($strClass == '' || !class_exists($strClass)) {
                 \System::log('Error creating product object of type "' . $this->type . '"', __METHOD__, TL_ERROR);
-
                 return null;
             }
 
@@ -218,11 +211,10 @@ class ProductCollectionItem extends \Model
 
                     $this->objProduct->setOptions($this->getOptions());
                 } catch (\RuntimeException $e) {
-                    $this->addError($GLOBALS['TL_LANG']['ERR']['collectionItemNotAvailable']);
+                    $this->addError($e->getMessage());
                 }
-            }
+            } 
         }
-
         return $this->objProduct;
     }
 
